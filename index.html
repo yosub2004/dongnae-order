@@ -45,11 +45,17 @@ const names=[
 const wrap=document.getElementById("items");
 names.forEach((n,i)=>{
  wrap.innerHTML+=`<div class=item>
- <input type=checkbox id=c${i}>
  <span>${n[0]}</span>
- <input type=number id=q${i} min=0 placeholder="${n[1]}">
+ <button type="button" onclick="chg(${i},-1)">-</button>
+ <span id="v${i}" style="width:60px;text-align:center">0${n[1]}</span>
+ <button type="button" onclick="chg(${i},1)">+</button>
  </div>`;
 });
+const qtys=new Array(names.length).fill(0);
+function chg(i,d){
+ qtys[i]=Math.max(0,qtys[i]+d);
+ document.getElementById("v"+i).innerText=qtys[i]+names[i][1];
+}
 document.getElementById("d").value=new Date().toISOString().slice(0,10);
 
 function makeSheet(){
@@ -57,9 +63,8 @@ function makeSheet(){
  list.innerHTML="";
  document.getElementById("dateTxt").innerText=document.getElementById("d").value;
  names.forEach((n,i)=>{
-   let c=document.getElementById("c"+i).checked;
-   let q=document.getElementById("q"+i).value;
-   if(c&&q){
+   let q=qtys[i];
+   if(q>0){
       list.innerHTML+=`<div class=row><span>✔ ${n[0]}</span><b>${q}${n[1]}</b></div>`;
    }
  });
