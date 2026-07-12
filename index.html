@@ -3,136 +3,405 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>동래옥 주방 발주</title>
+<title>동래옥 발주</title>
 
 <link rel="icon" type="image/png" href="icon.png">
 <link rel="apple-touch-icon" href="icon.png">
 
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+
 <style>
+*{box-sizing:border-box}
+body{
+  font-family:Arial,"Noto Sans KR",sans-serif;
+  background:#eef2f7;
+  margin:0;
+  padding:18px;
+  color:#111;
+}
+.card{
+  max-width:700px;
+  margin:auto;
+  background:#fff;
+  padding:20px;
+  border-radius:18px;
+  box-shadow:0 8px 24px rgba(0,0,0,.08);
+}
 .logo{
-    text-align:center;
-    margin-bottom:20px;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  margin:4px 0 18px;
 }
-
 .logo img{
-    width:320px;
-    max-width:90%;
-    height:auto;
+  width:390px;
+  max-width:92%;
+  height:auto;
+  display:block;
 }
-body{font-family:Arial,sans-serif;background:#eef2f7;margin:0;padding:18px}
-.card{max-width:700px;margin:auto;background:#fff;padding:20px;border-radius:18px;box-shadow:0 8px 24px rgba(0,0,0,.08)}
-h1{text-align:center;color:#b22222;margin-top:0}
-.item{display:flex;align-items:center;justify-content:space-between;background:#fafafa;padding:10px 14px;border-radius:12px;margin:8px 0}
-.item>span:first-child{font-size:16px;font-weight:600;flex:1}
-.item button{width:34px;height:34px;border:none;border-radius:50%;font-size:20px;font-weight:bold;cursor:pointer;transition:.15s}
-.item button:active{transform:scale(.9)}
-.item button:first-of-type{background:#ddd;color:#333}
-.item button:last-of-type{background:#c62828;color:#fff}
-.item span[id^=v]{display:inline-block;width:30px;text-align:center;font-size:18px;font-weight:bold}
-.card>button{width:100%;padding:13px;margin-top:10px;background:#b22222;color:#fff;border:none;border-radius:12px;font-size:17px;cursor:pointer}
-#sheet{background:#fff;padding:25px;margin-top:20px;border:2px solid #ddd;border-radius:12px}
-.row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed #ccc}
-
+.topbar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:14px;
+}
+.page-title{
+  font-size:21px;
+  font-weight:800;
+}
+.nav-btn,.back-btn{
+  border:none;
+  border-radius:12px;
+  padding:10px 14px;
+  background:#222;
+  color:white;
+  font-size:15px;
+  font-weight:700;
+  cursor:pointer;
+}
+.back-btn{background:#555}
 .date-row{
-    display:flex;
-    align-items:center;
-    gap:10px;
-    margin:8px 0 18px;
-    font-weight:700;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin:8px 0 18px;
+  font-weight:700;
 }
 .date-row label{
-    white-space:nowrap;
-    font-size:16px;
+  white-space:nowrap;
+  font-size:16px;
 }
 .date-row input{
-    padding:8px 10px;
-    border:1px solid #d6d9df;
-    border-radius:10px;
-    font-size:16px;
-    background:#fff;
+  padding:8px 10px;
+  border:1px solid #d6d9df;
+  border-radius:10px;
+  font-size:16px;
+  background:#fff;
 }
-.logo{
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    margin:4px 0 20px;
+.section-title{
+  font-size:15px;
+  font-weight:800;
+  color:#9f1e1e;
+  margin:20px 2px 8px;
+  padding-bottom:7px;
+  border-bottom:2px solid #f0d3d3;
 }
-.logo img{
-    width:390px;
-    max-width:92%;
-    height:auto;
-    display:block;
+.item{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  background:#fafafa;
+  padding:10px 14px;
+  border-radius:12px;
+  margin:8px 0;
 }
+.item-name{
+  font-size:16px;
+  font-weight:600;
+  flex:1;
+  min-width:0;
+  padding-right:10px;
+}
+.controls{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  flex-shrink:0;
+}
+.circle-btn{
+  width:34px;
+  height:34px;
+  border:none;
+  border-radius:50%;
+  font-size:20px;
+  line-height:34px;
+  font-weight:bold;
+  cursor:pointer;
+  transition:transform .12s,filter .12s;
+  padding:0;
+  margin:0;
+}
+.circle-btn:active{
+  transform:scale(.88);
+  filter:brightness(.92);
+}
+.minus{background:#ddd;color:#333}
+.plus{background:#c62828;color:#fff}
+.count{
+  width:34px;
+  text-align:center;
+  font-size:18px;
+  font-weight:800;
+}
+.action-btn{
+  width:100%;
+  padding:13px;
+  margin-top:10px;
+  background:#b22222;
+  color:#fff;
+  border:none;
+  border-radius:12px;
+  font-size:17px;
+  font-weight:800;
+  cursor:pointer;
+}
+.action-btn.secondary{background:#333}
+#sheet{
+  background:#fff;
+  padding:25px;
+  margin-top:20px;
+  border:2px solid #ddd;
+  border-radius:12px;
+}
+#sheet h2,#sheet h3{text-align:center}
+#sheetTitle{margin-top:4px}
+.row{
+  display:flex;
+  justify-content:space-between;
+  gap:20px;
+  padding:8px 0;
+  border-bottom:1px dashed #ccc;
+}
+.sheet-section{
+  margin-top:16px;
+  font-size:17px;
+  font-weight:800;
+  color:#a51f1f;
+}
+.hidden{display:none!important}
 
+@media(max-width:520px){
+  body{padding:8px}
+  .card{padding:14px;border-radius:14px}
+  .logo img{width:330px;max-width:96%}
+  .page-title{font-size:18px}
+  .nav-btn,.back-btn{padding:9px 11px;font-size:14px}
+  .item{padding:9px 11px}
+  .item-name{font-size:15px}
+  .circle-btn{width:31px;height:31px;line-height:31px;font-size:18px}
+  .count{width:28px;font-size:17px}
+}
 </style>
 </head>
+
 <body>
 <div class="card">
-<div class="logo">
+  <div class="logo">
     <img src="logo_clean.png" alt="동래옥">
-</div>
-<div class="date-row">
-  <label for="d">발주 날짜</label>
-  <input type="date" id="d">
-</div>
+  </div>
 
-<div id="items"></div>
+  <div class="topbar">
+    <button id="backBtn" class="back-btn hidden" type="button" onclick="goKitchen()">← 주방으로</button>
+    <div id="pageTitle" class="page-title">주방 발주</div>
+    <button id="hallBtn" class="nav-btn" type="button" onclick="goHall()">홀 발주</button>
+  </div>
 
-<button onclick="makeSheet()">발주서 만들기</button>
-<button onclick="saveImg()">이미지 저장</button>
+  <div class="date-row">
+    <label for="d">발주 날짜</label>
+    <input type="date" id="d">
+  </div>
 
-<div id="sheet">
-<h2 style="text-align:center">동래옥 진접본점</h2>
-<h3 style="text-align:center">발주서</h3>
-<p id="dateTxt"></p>
-<div id="list"></div>
-<p style="text-align:center;margin-top:20px">감사합니다.</p>
-</div>
+  <div id="items"></div>
+
+  <button class="action-btn" onclick="makeSheet()">발주서 만들기</button>
+  <button class="action-btn secondary" onclick="saveImg()">이미지 저장</button>
+
+  <div id="sheet">
+    <h2>동래옥 진접본점</h2>
+    <h3 id="sheetTitle">주방 발주서</h3>
+    <p id="dateTxt"></p>
+    <div id="list"></div>
+    <p style="text-align:center;margin-top:20px">감사합니다.</p>
+  </div>
 </div>
 
 <script>
-const names=[
-["토종순대","박스"],["백순대","박스"],["찰순대","박스"],["돼지머리(탕용)","박스"],["돼지머리(수육용)","박스"],
-["다대기","박스"],["사골육수","박스"],["갈비탕","박스"],
-["낚지볶음","박스"],["편육","박스"],["돈가스","박스"],["소곱창 전골","박스"],["소고기 곰탕","박스"],["순살족발","박스"],["함박","박스"],["우삼겹","박스"],["겉절이 김치","박스"],["돼지곱창","박스"],["오소리","박스"],
-];
-const wrap=document.getElementById("items");
-names.forEach((n,i)=>{
- wrap.innerHTML+=`<div class=item>
- <span>${n[0]}</span>
- <button type="button" onclick="chg(${i},-1)">-</button>
- <span id="v${i}" style="width:60px;text-align:center">0</span>
- <button type="button" onclick="chg(${i},1)">+</button>
- </div>`;
-});
-const qtys=new Array(names.length).fill(0);
-function chg(i,d){
- qtys[i]=Math.max(0,qtys[i]+d);
- document.getElementById("v"+i).innerText=qtys[i];
+const pages = {
+  kitchen: {
+    title: "주방 발주",
+    sheetTitle: "주방 발주서",
+    items: [
+      ["토종순대","박스"],["백순대","박스"],["찰순대","박스"],
+      ["돼지머리(탕용)","박스"],["돼지머리(수육용)","박스"],
+      ["다대기","박스"],["사골육수","박스"],["갈비탕","박스"],
+      ["낙지볶음","박스"],["편육","박스"],["돈가스","박스"],
+      ["소곱창 전골","박스"],["소고기 곰탕","박스"],["순살족발","박스"],
+      ["함박","박스"],["우삼겹","박스"],["겉절이 김치","박스"],
+      ["돼지곱창","박스"],["오소리","박스"]
+    ]
+  },
+  hall: {
+    title: "홀 발주",
+    sheetTitle: "홀 발주서",
+    sections: [
+      {
+        name: "주류",
+        items: [
+          ["카스","박스"],["테라","박스"],["참이슬","박스"],["처음처럼","박스"],
+          ["진로이즈","박스"],["새로","박스"],["참이슬 오리지날","박스"],["청하","박스"]
+        ]
+      },
+      {
+        name: "소스류",
+        items: [
+          ["참소스","개"],["돈가스 소스","개"]
+        ]
+      },
+      {
+        name: "홀 메인 품목",
+        items: [
+          ["종이컵","개"],["물티슈","개"],["테이블 냅킨","개"],["점보롤","개"],
+          ["두루마리 휴지","개"],["키친타올","개"],["쌈장","개"],["단무지","개"],
+          ["옥수수 콘샐러드","개"],["후추","개"],["머스타드","개"],["데리야끼","개"],
+          ["새우젓","개"],["커피믹스","개"],["들깨가루","개"],["원두커피","개"]
+        ]
+      },
+      {
+        name: "포장용기",
+        items: [
+          ["두칸실링","개"],["깍두기용기 (95)","개"],["소스용기 (70)","개"],
+          ["육수용기 500ml","개"],["들깨 포장봉지","개"],["포장봉투(중)","개"],
+          ["포장봉투(소)","개"],["탕용기","개"]
+        ]
+      },
+      {
+        name: "주방용품",
+        items: [
+          ["식기세척기 세제","개"],["식기세척기 린스","개"],["초음파 세척세제","개"],
+          ["트리오","개"],["라텍스 장갑(대)","개"],["라텍스 장갑(중)","개"],
+          ["고무장갑(소)","개"],["고무장갑(대)","개"],["크린랩 30X40","개"],
+          ["파란봉투 70L","개"]
+        ]
+      }
+    ]
+  }
+};
+
+let currentPage = "kitchen";
+const quantities = { kitchen:{}, hall:{} };
+
+function getFlatItems(pageKey){
+  const page = pages[pageKey];
+  if(page.items) return page.items.map((item,index)=>({item,index,section:null}));
+  const result=[];
+  page.sections.forEach((section)=>{
+    section.items.forEach((item)=>{
+      result.push({item,index:result.length,section:section.name});
+    });
+  });
+  return result;
 }
-document.getElementById("d").value=new Date().toISOString().slice(0,10);
+
+function renderPage(){
+  const page=pages[currentPage];
+  document.getElementById("pageTitle").textContent=page.title;
+  document.getElementById("sheetTitle").textContent=page.sheetTitle;
+
+  const back=document.getElementById("backBtn");
+  const hall=document.getElementById("hallBtn");
+  back.classList.toggle("hidden",currentPage==="kitchen");
+  hall.classList.toggle("hidden",currentPage==="hall");
+
+  const wrap=document.getElementById("items");
+  wrap.innerHTML="";
+
+  if(page.items){
+    page.items.forEach((item,i)=>wrap.appendChild(createItemRow(item,i)));
+  }else{
+    let index=0;
+    page.sections.forEach(section=>{
+      const title=document.createElement("div");
+      title.className="section-title";
+      title.textContent=section.name;
+      wrap.appendChild(title);
+      section.items.forEach(item=>{
+        wrap.appendChild(createItemRow(item,index));
+        index++;
+      });
+    });
+  }
+}
+
+function createItemRow(item,index){
+  const row=document.createElement("div");
+  row.className="item";
+  const value=quantities[currentPage][index]||0;
+  row.innerHTML=`
+    <span class="item-name">${item[0]}</span>
+    <div class="controls">
+      <button class="circle-btn minus" type="button" onclick="changeQty(${index},-1)">−</button>
+      <span class="count" id="count-${currentPage}-${index}">${value}</span>
+      <button class="circle-btn plus" type="button" onclick="changeQty(${index},1)">+</button>
+    </div>`;
+  return row;
+}
+
+function changeQty(index,delta){
+  const old=quantities[currentPage][index]||0;
+  quantities[currentPage][index]=Math.max(0,old+delta);
+  document.getElementById(`count-${currentPage}-${index}`).textContent=quantities[currentPage][index];
+}
+
+function goHall(){
+  history.pushState({page:"hall"},"","#hall");
+  currentPage="hall";
+  renderPage();
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+
+function goKitchen(){
+  if(currentPage!=="kitchen"){
+    history.back();
+  }
+}
+
+window.addEventListener("popstate",()=>{
+  currentPage="kitchen";
+  renderPage();
+  window.scrollTo({top:0,behavior:"smooth"});
+});
 
 function makeSheet(){
- let list=document.getElementById("list");
- list.innerHTML="";
- document.getElementById("dateTxt").innerText=document.getElementById("d").value;
- names.forEach((n,i)=>{
-   let q=qtys[i];
-   if(q>0){
-      list.innerHTML+=`<div class=row><span>✔ ${n[0]}</span><b>${q}${n[1]}</b></div>`;
-   }
- });
+  const page=pages[currentPage];
+  const flat=getFlatItems(currentPage);
+  const list=document.getElementById("list");
+  list.innerHTML="";
+  document.getElementById("sheetTitle").textContent=page.sheetTitle;
+  document.getElementById("dateTxt").textContent=document.getElementById("d").value;
+
+  let lastSection=null;
+  flat.forEach(({item,index,section})=>{
+    const q=quantities[currentPage][index]||0;
+    if(q<=0) return;
+
+    if(section && section!==lastSection){
+      const heading=document.createElement("div");
+      heading.className="sheet-section";
+      heading.textContent=section;
+      list.appendChild(heading);
+      lastSection=section;
+    }
+
+    const row=document.createElement("div");
+    row.className="row";
+    row.innerHTML=`<span>✔ ${item[0]}</span><b>${q}${item[1]}</b>`;
+    list.appendChild(row);
+  });
 }
 
 function saveImg(){
- html2canvas(document.getElementById("sheet")).then(canvas=>{
-   const a=document.createElement("a");
-   a.download="동래옥_발주서.png";
-   a.href=canvas.toDataURL();
-   a.click();
- });
+  makeSheet();
+  html2canvas(document.getElementById("sheet"),{backgroundColor:"#ffffff",scale:2}).then(canvas=>{
+    const a=document.createElement("a");
+    a.download=`동래옥_${pages[currentPage].sheetTitle}.png`;
+    a.href=canvas.toDataURL("image/png");
+    a.click();
+  });
 }
+
+document.getElementById("d").value=new Date().toISOString().slice(0,10);
+renderPage();
 </script>
 </body>
 </html>
