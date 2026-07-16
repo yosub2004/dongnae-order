@@ -1211,21 +1211,57 @@ button,
 }
 
 
+
 .reservation-badge{display:none;margin-top:8px;padding:7px 10px;border-radius:10px;background:#fff0f0;color:#b42323;font-size:13px;font-weight:900}
 .reservation-badge.show{display:block}
-.reservation-card{max-width:900px;margin:auto;background:#fff;border-radius:18px;padding:18px;box-shadow:0 8px 24px rgba(0,0,0,.08)}
+.reservation-card{max-width:980px;margin:auto;background:#fff;border-radius:18px;padding:18px;box-shadow:0 8px 24px rgba(0,0,0,.08)}
 .reservation-title{text-align:center;font-size:24px;font-weight:900;margin:16px 0}
-.reservation-form{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.reservation-toolbar{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:14px}
+.reservation-view-buttons{display:flex;gap:7px}
+.reservation-view-btn{border:1px solid #d5d9df;border-radius:10px;padding:9px 12px;background:#fff;font-weight:900;cursor:pointer}
+.reservation-view-btn.active{background:#222;color:#fff;border-color:#222}
+.reservation-search{flex:1;min-width:190px;max-width:360px;padding:10px 12px;border:1px solid #d7dbe1;border-radius:10px;font-size:15px}
+.reservation-form{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 .reservation-field label{display:block;margin-bottom:5px;font-size:13px;font-weight:900}
-.reservation-field input{width:100%;padding:11px;border:1px solid #d7dbe1;border-radius:10px;font-size:15px;background:#fff}
+.reservation-field input,.reservation-field textarea{width:100%;padding:11px;border:1px solid #d7dbe1;border-radius:10px;font-size:15px;background:#fff;user-select:text;-webkit-user-select:text}
+.reservation-field textarea{min-height:76px;resize:vertical}
+.reservation-field.full{grid-column:1/-1}
 .reservation-add-btn{width:100%;margin-top:12px;padding:13px;border:none;border-radius:11px;background:#8b2f2f;color:#fff;font-size:16px;font-weight:900}
 .reservation-list{display:grid;gap:10px;margin-top:18px}
-.reservation-item{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px;border:1px solid #e1e3e7;border-radius:13px}
+.reservation-item{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px;border:2px solid #e1e3e7;border-radius:13px;background:#fff}
+.reservation-item.upcoming{border-color:#72b981;background:#f2fff4}
+.reservation-item.soon{border-color:#ef9a3e;background:#fff7eb}
+.reservation-item.overdue{border-color:#d94a4a;background:#fff0f0}
+.reservation-item.completed{border-color:#c5c7ca;background:#f2f3f4;color:#777}
 .reservation-main{font-size:17px;font-weight:900}
-.reservation-sub{margin-top:5px;color:#666;font-size:14px;font-weight:700}
-.reservation-delete{border:none;border-radius:9px;padding:9px 11px;background:#555;color:#fff;font-weight:900}
+.reservation-sub{margin-top:5px;color:#666;font-size:14px;font-weight:700;line-height:1.5}
+.reservation-phone{display:inline-block;color:#1d5aa6;font-weight:900;text-decoration:none;margin-top:4px}
+.reservation-memo{margin-top:6px;padding:7px 9px;border-radius:8px;background:rgba(0,0,0,.05);white-space:pre-wrap}
+.reservation-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.reservation-action{border:none;border-radius:9px;padding:9px 11px;color:#fff;font-weight:900;cursor:pointer;text-decoration:none}
+.reservation-call{background:#2f7d32}
+.reservation-complete{background:#bd7b16}
+.reservation-edit{background:#3368a8}
+.reservation-delete{background:#555}
 .reservation-empty{text-align:center;padding:28px 12px;color:#777;font-weight:800}
-@media(max-width:700px){.reservation-form{grid-template-columns:1fr 1fr}}
+.reservation-calendar{display:none;margin-top:18px}
+.reservation-calendar.show{display:block}
+.calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:7px}
+.calendar-head{text-align:center;font-size:13px;font-weight:900;color:#666;padding:5px}
+.calendar-day{min-height:96px;border:1px solid #dfe2e6;border-radius:10px;padding:7px;background:#fff}
+.calendar-day.empty{background:#f7f7f7}
+.calendar-date{font-size:14px;font-weight:900;margin-bottom:5px}
+.calendar-entry{display:block;width:100%;text-align:left;border:none;border-radius:7px;padding:5px 6px;margin-top:4px;background:#f2ebe4;font-size:11px;font-weight:800;cursor:pointer}
+.calendar-nav{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:10px}
+.calendar-nav button{border:none;border-radius:9px;padding:8px 11px;background:#555;color:#fff;font-weight:900}
+.calendar-month{font-size:18px;font-weight:900;min-width:130px;text-align:center}
+@media(max-width:700px){
+  .reservation-form{grid-template-columns:1fr 1fr}
+  .reservation-field.full{grid-column:1/-1}
+  .reservation-item{align-items:flex-start;flex-direction:column}
+  .reservation-actions{width:100%;justify-content:flex-start}
+  .calendar-day{min-height:76px;padding:5px}
+}
 </style>
 </head>
 
@@ -1862,9 +1898,14 @@ renderPage();
 
 <script>
 
+
 let reservations=[];
 let reservationRef=null;
 let latestReservationCreatedAt=0;
+let reservationView="list";
+let editingReservationId=null;
+let calendarCursor=new Date();
+
 function reservationSeenKey(){return "dongrae_reservations_seen_at";}
 function getReservationSeenAt(){return Number(localStorage.getItem(reservationSeenKey())||0);}
 function updateReservationBadge(){
@@ -1883,28 +1924,77 @@ function attachReservationSync(){
   reservationRef.on("value",snap=>{
     const value=snap.val()||{};
     reservations=Object.keys(value).map(id=>({id,...value[id]}));
-    reservations.sort((a,b)=>((a.date||"")+" "+(a.time||"")).localeCompare((b.date||"")+" "+(b.time||"")));
     latestReservationCreatedAt=reservations.reduce((m,r)=>Math.max(m,Number(r.createdAt||0)),0);
     updateReservationBadge();
     renderReservations();
-  });
+  },error=>console.error("예약 동기화 실패:",error));
 }
 function detachReservationSync(){
   if(reservationRef)reservationRef.off();
-  reservationRef=null;reservations=[];latestReservationCreatedAt=0;updateReservationBadge();
+  reservationRef=null;
+  reservations=[];
+  latestReservationCreatedAt=0;
+  updateReservationBadge();
 }
-async function addReservation(){
+function formatPhoneInput(input){
+  const digits=input.value.replace(/\D/g,"").slice(0,11);
+  if(digits.length<=3)input.value=digits;
+  else if(digits.length<=7)input.value=digits.slice(0,3)+"-"+digits.slice(3);
+  else input.value=digits.slice(0,3)+"-"+digits.slice(3,7)+"-"+digits.slice(7);
+}
+function cleanPhone(phone){return String(phone||"").replace(/\D/g,"");}
+function clearReservationForm(){
+  editingReservationId=null;
+  ["reservationName","reservationPhone","reservationPeople","reservationMemo"].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el)el.value="";
+  });
+  const btn=document.getElementById("reservationAddButton");
+  if(btn)btn.textContent=t("addReservation");
+}
+async function saveReservation(){
+  if(!currentAuthUser||!firebaseReady)return;
+  const name=document.getElementById("reservationName").value.trim();
+  const phone=document.getElementById("reservationPhone").value.trim();
+  const people=Number(document.getElementById("reservationPeople").value);
   const date=document.getElementById("reservationDate").value;
   const time=document.getElementById("reservationTime").value;
-  const people=Number(document.getElementById("reservationPeople").value);
-  const name=document.getElementById("reservationName").value.trim();
+  const memo=document.getElementById("reservationMemo").value.trim();
+
   if(!date||!time||!people||people<1||!name){alert(t("fillReservation"));return;}
-  const ref=db.ref("dongrae/reservations").push();
-  await ref.set({date,time,people,name,createdAt:firebase.database.ServerValue.TIMESTAMP,createdBy:currentAuthUser.uid});
-  document.getElementById("reservationPeople").value="";
-  document.getElementById("reservationName").value="";
+  if(cleanPhone(phone).length<9){alert(t("phoneRequired"));return;}
+
+  const payload={date,time,people,name,phone,memo,updatedAt:firebase.database.ServerValue.TIMESTAMP};
+  if(editingReservationId){
+    await db.ref("dongrae/reservations/"+editingReservationId).update(payload);
+  }else{
+    const ref=db.ref("dongrae/reservations").push();
+    await ref.set({...payload,completed:false,createdAt:firebase.database.ServerValue.TIMESTAMP,createdBy:currentAuthUser.uid});
+  }
+  clearReservationForm();
+}
+function editReservation(id){
+  const r=reservations.find(x=>x.id===id);
+  if(!r)return;
+  editingReservationId=id;
+  document.getElementById("reservationName").value=r.name||"";
+  document.getElementById("reservationPhone").value=r.phone||"";
+  document.getElementById("reservationPeople").value=r.people||"";
+  document.getElementById("reservationDate").value=r.date||"";
+  document.getElementById("reservationTime").value=r.time||"";
+  document.getElementById("reservationMemo").value=r.memo||"";
+  document.getElementById("reservationAddButton").textContent=t("saveEdit");
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+async function toggleReservationComplete(id,current){
+  await db.ref("dongrae/reservations/"+id).update({
+    completed:!current,
+    completedAt:!current?firebase.database.ServerValue.TIMESTAMP:null,
+    completedBy:!current&&currentAuthUser?currentAuthUser.uid:null
+  });
 }
 async function deleteReservation(id){
+  if(!isOwner()){alert(t("deleteOwnerOnly"));return;}
   if(!confirm(t("deleteReservation")))return;
   await db.ref("dongrae/reservations/"+id).remove();
 }
@@ -1913,11 +2003,93 @@ function formatReservationDate(date){
   const [y,m,d]=date.split("-");
   return currentLanguage==="vi"?`${d}/${m}/${y}`:`${y}.${m}.${d}`;
 }
+function reservationDateTime(r){
+  const value=new Date(`${r.date||"1970-01-01"}T${r.time||"00:00"}:00`);
+  return Number.isNaN(value.getTime())?new Date(0):value;
+}
+function reservationStatusClass(r){
+  if(r.completed)return "completed";
+  const diff=reservationDateTime(r).getTime()-Date.now();
+  if(diff<0)return "overdue";
+  if(diff<=60*60*1000)return "soon";
+  return "upcoming";
+}
+function getFilteredReservations(){
+  const q=(document.getElementById("reservationSearch")?.value||"").trim().toLowerCase();
+  return reservations.filter(r=>{
+    const text=`${r.name||""} ${r.phone||""} ${r.memo||""}`.toLowerCase();
+    return !q||text.includes(q);
+  }).sort((a,b)=>{
+    if(Boolean(a.completed)!==Boolean(b.completed))return a.completed?1:-1;
+    return reservationDateTime(a)-reservationDateTime(b);
+  });
+}
+function setReservationView(view){
+  reservationView=view==="calendar"?"calendar":"list";
+  document.getElementById("reservationListBtn")?.classList.toggle("active",reservationView==="list");
+  document.getElementById("reservationCalendarBtn")?.classList.toggle("active",reservationView==="calendar");
+  const list=document.getElementById("reservationList");
+  const calendar=document.getElementById("reservationCalendar");
+  if(list)list.style.display=reservationView==="list"?"grid":"none";
+  if(calendar)calendar.classList.toggle("show",reservationView==="calendar");
+  renderReservations();
+}
+function changeCalendarMonth(delta){
+  calendarCursor=new Date(calendarCursor.getFullYear(),calendarCursor.getMonth()+delta,1);
+  renderReservationCalendar();
+}
+function renderReservationCalendar(){
+  const label=document.getElementById("calendarMonthLabel");
+  const days=document.getElementById("calendarDays");
+  if(!label||!days)return;
+
+  const year=calendarCursor.getFullYear();
+  const month=calendarCursor.getMonth();
+  label.textContent=currentLanguage==="vi"?`${month+1}/${year}`:`${year}년 ${month+1}월`;
+
+  const first=new Date(year,month,1);
+  const last=new Date(year,month+1,0);
+  const mondayIndex=(first.getDay()+6)%7;
+  let output="";
+
+  for(let i=0;i<mondayIndex;i++)output+='<div class="calendar-day empty"></div>';
+
+  const filtered=getFilteredReservations();
+  for(let day=1;day<=last.getDate();day++){
+    const dateKey=`${year}-${String(month+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+    const entries=filtered.filter(r=>r.date===dateKey);
+    output+=`<div class="calendar-day"><div class="calendar-date">${day}</div>${entries.map(r=>`<button class="calendar-entry" onclick="editReservation('${r.id}')">${escapeHtml(r.time||"")} ${escapeHtml(r.name||"")} ${Number(r.people||0)}${t("peopleUnit")}</button>`).join("")}</div>`;
+  }
+  days.innerHTML=output;
+}
 function renderReservations(){
   const list=document.getElementById("reservationList");
   if(!list)return;
-  if(!reservations.length){list.innerHTML=`<div class="reservation-empty">${t("noReservations")}</div>`;return;}
-  list.innerHTML=reservations.map(r=>`<div class="reservation-item"><div><div class="reservation-main">${escapeHtml(r.name)} · ${Number(r.people||0)}${t("peopleUnit")}</div><div class="reservation-sub">${formatReservationDate(r.date)} ${escapeHtml(r.time||"")}</div></div><button class="reservation-delete" onclick="deleteReservation('${r.id}')">${t("delete")}</button></div>`).join("");
+
+  const filtered=getFilteredReservations();
+  if(!filtered.length){
+    list.innerHTML=`<div class="reservation-empty">${t("noReservations")}</div>`;
+  }else{
+    list.innerHTML=filtered.map(r=>{
+      const phone=cleanPhone(r.phone);
+      const canCall=phone.length>=9;
+      return `<div class="reservation-item ${reservationStatusClass(r)}">
+        <div>
+          <div class="reservation-main">${escapeHtml(r.name||"")} · ${Number(r.people||0)}${t("peopleUnit")}</div>
+          <div class="reservation-sub">${formatReservationDate(r.date)} ${escapeHtml(r.time||"")}</div>
+          ${canCall?`<a class="reservation-phone" href="tel:${phone}">📞 ${escapeHtml(r.phone||"")}</a>`:""}
+          ${r.memo?`<div class="reservation-memo">${escapeHtml(r.memo)}</div>`:""}
+        </div>
+        <div class="reservation-actions">
+          ${canCall?`<a class="reservation-action reservation-call" href="tel:${phone}">${t("call")}</a>`:""}
+          <button class="reservation-action reservation-complete" onclick="toggleReservationComplete('${r.id}',${Boolean(r.completed)})">${r.completed?t("undoComplete"):t("complete")}</button>
+          <button class="reservation-action reservation-edit" onclick="editReservation('${r.id}')">${t("edit")}</button>
+          ${isOwner()?`<button class="reservation-action reservation-delete" onclick="deleteReservation('${r.id}')">${t("delete")}</button>`:""}
+        </div>
+      </div>`;
+    }).join("");
+  }
+  renderReservationCalendar();
 }
 
 </script>
@@ -2032,7 +2204,7 @@ const UI_TEXT = {
     afternoon:"오후",
     owner:"사장",
     employee:"직원",
-    accessDenied:"접근 권한이 없습니다.\n직원 계정은 야채 발주만 사용할 수 있습니다.",reservation:"예약",reservationDesc:"예약 날짜, 시간, 인원과 예약자 성함을 관리합니다.",newReservation:"새로운 예약자가 추가되었습니다.",reservationManagement:"예약 관리",reservationDate:"예약 날짜",reservationTime:"예약 시간",reservationPeople:"예약 인원",reservationName:"예약자 성함",addReservation:"예약 추가",delete:"삭제",peopleUnit:"명",noReservations:"등록된 예약이 없습니다.",fillReservation:"날짜, 시간, 인원, 성함을 모두 입력해주세요.",deleteReservation:"이 예약을 삭제할까요?"
+    accessDenied:"접근 권한이 없습니다.\n직원 계정은 야채 발주만 사용할 수 있습니다.",reservation:"예약",reservationDesc:"예약 날짜, 시간, 인원과 예약자 성함을 관리합니다.",newReservation:"새로운 예약자가 추가되었습니다.",reservationManagement:"예약 관리",reservationDate:"예약 날짜",reservationTime:"예약 시간",reservationPeople:"예약 인원",reservationName:"예약자 성함",addReservation:"예약 추가",delete:"삭제",peopleUnit:"명",noReservations:"등록된 예약이 없습니다.",fillReservation:"날짜, 시간, 인원, 성함을 모두 입력해주세요.",deleteReservation:"이 예약을 삭제할까요?",reservationPhone:"전화번호",reservationMemo:"메모 (선택)",listView:"목록 보기",calendarView:"달력 보기",searchReservation:"성함·전화번호 검색",call:"전화",complete:"방문완료",undoComplete:"완료 취소",edit:"수정",saveEdit:"수정 저장",phoneRequired:"전화번호를 입력해주세요.",deleteOwnerOnly:"예약 삭제는 사장 계정만 가능합니다."
   },
   vi: {
     appTitle:"Hệ thống quản lý tổng hợp Dongraeok",
@@ -2076,7 +2248,7 @@ const UI_TEXT = {
     afternoon:"Ca chiều",
     owner:"Chủ",
     employee:"Nhân viên",
-    accessDenied:"Bạn không có quyền truy cập.\nTài khoản nhân viên chỉ được dùng mục đặt hàng rau.",reservation:"Đặt bàn",reservationDesc:"Quản lý ngày, giờ, số người và tên người đặt.",newReservation:"Có đặt bàn mới.",reservationManagement:"Quản lý đặt bàn",reservationDate:"Ngày đặt",reservationTime:"Giờ đặt",reservationPeople:"Số người",reservationName:"Tên người đặt",addReservation:"Thêm đặt bàn",delete:"Xóa",peopleUnit:"người",noReservations:"Chưa có đặt bàn.",fillReservation:"Vui lòng nhập đầy đủ ngày, giờ, số người và tên.",deleteReservation:"Bạn có muốn xóa đặt bàn này không?"
+    accessDenied:"Bạn không có quyền truy cập.\nTài khoản nhân viên chỉ được dùng mục đặt hàng rau.",reservation:"Đặt bàn",reservationDesc:"Quản lý ngày, giờ, số người và tên người đặt.",newReservation:"Có đặt bàn mới.",reservationManagement:"Quản lý đặt bàn",reservationDate:"Ngày đặt",reservationTime:"Giờ đặt",reservationPeople:"Số người",reservationName:"Tên người đặt",addReservation:"Thêm đặt bàn",delete:"Xóa",peopleUnit:"người",noReservations:"Chưa có đặt bàn.",fillReservation:"Vui lòng nhập đầy đủ ngày, giờ, số người và tên.",deleteReservation:"Bạn có muốn xóa đặt bàn này không?",reservationPhone:"Số điện thoại",reservationMemo:"Ghi chú (không bắt buộc)",listView:"Danh sách",calendarView:"Lịch",searchReservation:"Tìm tên hoặc số điện thoại",call:"Gọi",complete:"Đã đến",undoComplete:"Hủy hoàn tất",edit:"Sửa",saveEdit:"Lưu sửa",phoneRequired:"Vui lòng nhập số điện thoại.",deleteOwnerOnly:"Chỉ tài khoản chủ mới được xóa đặt bàn."
   }
 };
 
@@ -2236,6 +2408,10 @@ function applyLanguage(){
     const key=el.dataset.i18n;
     if(UI_TEXT[currentLanguage][key]) el.textContent=UI_TEXT[currentLanguage][key];
   });
+  document.querySelectorAll("[data-i18n-placeholder]").forEach(el=>{
+    const key=el.dataset.i18nPlaceholder;
+    if(UI_TEXT[currentLanguage][key]) el.placeholder=UI_TEXT[currentLanguage][key];
+  });
 
   const koBtn=document.getElementById("langKoBtn");
   const viBtn=document.getElementById("langViBtn");
@@ -2251,24 +2427,54 @@ function applyLanguage(){
   if(document.getElementById("scheduleScreen")?.classList.contains("active")){
     renderScheduleWithoutReload();
   }
+  renderReservations();
+  if(editingReservationId){
+    const btn=document.getElementById("reservationAddButton");
+    if(btn)btn.textContent=t("saveEdit");
+  }
 }
 
 </script>
 
 <div id="reservationScreen" class="screen">
-    <div class="reservation-card">
-      <button class="home-back" type="button" onclick="showHome()"><span data-i18n="mainMenu">← 메인 메뉴</span></button>
-      <button class="logout-btn" style="float:right" type="button" onclick="logoutDongrae()"><span data-i18n="logout">로그아웃</span></button>
-      <div class="reservation-title" data-i18n="reservationManagement">예약 관리</div>
-      <div class="reservation-form">
-        <div class="reservation-field"><label data-i18n="reservationDate">예약 날짜</label><input id="reservationDate" type="date"></div>
-        <div class="reservation-field"><label data-i18n="reservationTime">예약 시간</label><input id="reservationTime" type="time"></div>
-        <div class="reservation-field"><label data-i18n="reservationPeople">예약 인원</label><input id="reservationPeople" type="number" min="1" inputmode="numeric"></div>
-        <div class="reservation-field"><label data-i18n="reservationName">예약자 성함</label><input id="reservationName" type="text"></div>
+  <div class="reservation-card">
+    <button class="home-back" type="button" onclick="showHome()"><span data-i18n="mainMenu">← 메인 메뉴</span></button>
+    <button class="logout-btn" style="float:right" type="button" onclick="logoutDongrae()"><span data-i18n="logout">로그아웃</span></button>
+    <div class="reservation-title" data-i18n="reservationManagement">예약 관리</div>
+
+    <div class="reservation-toolbar">
+      <div class="reservation-view-buttons">
+        <button id="reservationListBtn" class="reservation-view-btn active" type="button" onclick="setReservationView('list')" data-i18n="listView">목록 보기</button>
+        <button id="reservationCalendarBtn" class="reservation-view-btn" type="button" onclick="setReservationView('calendar')" data-i18n="calendarView">달력 보기</button>
       </div>
-      <button class="reservation-add-btn" type="button" onclick="addReservation()" data-i18n="addReservation">예약 추가</button>
-      <div id="reservationList" class="reservation-list"></div>
+      <input id="reservationSearch" class="reservation-search" type="search" oninput="renderReservations()" data-i18n-placeholder="searchReservation" placeholder="성함·전화번호 검색">
+    </div>
+
+    <div class="reservation-form">
+      <div class="reservation-field"><label data-i18n="reservationName">예약자 성함</label><input id="reservationName" type="text"></div>
+      <div class="reservation-field"><label data-i18n="reservationPhone">전화번호</label><input id="reservationPhone" type="tel" inputmode="tel" oninput="formatPhoneInput(this)" placeholder="010-0000-0000"></div>
+      <div class="reservation-field"><label data-i18n="reservationPeople">예약 인원</label><input id="reservationPeople" type="number" min="1" inputmode="numeric"></div>
+      <div class="reservation-field"><label data-i18n="reservationDate">예약 날짜</label><input id="reservationDate" type="date"></div>
+      <div class="reservation-field"><label data-i18n="reservationTime">예약 시간</label><input id="reservationTime" type="time"></div>
+      <div class="reservation-field full"><label data-i18n="reservationMemo">메모 (선택)</label><textarea id="reservationMemo" placeholder="생일, 아기의자, 창가 자리 등"></textarea></div>
+    </div>
+
+    <button id="reservationAddButton" class="reservation-add-btn" type="button" onclick="saveReservation()" data-i18n="addReservation">예약 추가</button>
+
+    <div id="reservationList" class="reservation-list"></div>
+
+    <div id="reservationCalendar" class="reservation-calendar">
+      <div class="calendar-nav">
+        <button type="button" onclick="changeCalendarMonth(-1)">←</button>
+        <div id="calendarMonthLabel" class="calendar-month"></div>
+        <button type="button" onclick="changeCalendarMonth(1)">→</button>
+      </div>
+      <div class="calendar-grid">
+        <div class="calendar-head">월</div><div class="calendar-head">화</div><div class="calendar-head">수</div><div class="calendar-head">목</div><div class="calendar-head">금</div><div class="calendar-head">토</div><div class="calendar-head">일</div>
+      </div>
+      <div id="calendarDays" class="calendar-grid"></div>
     </div>
   </div>
+</div>
 </body>
 </html>
