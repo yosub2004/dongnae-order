@@ -2919,8 +2919,73 @@ function formatAttendanceTime(timestamp){
   if(!timestamp)return "";
   return new Intl.DateTimeFormat("ko-KR",{month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false}).format(new Date(timestamp));
 }
+
+let attendanceAudioContext=null;
+function prepareAttendanceAudio(){
+  try{
+    const AudioCtx=window.AudioContext||window.webkitAudioContext;
+    if(!AudioCtx)return;
+    if(!attendanceAudioContext)attendanceAudioContext=new AudioCtx();
+    if(attendanceAudioContext.state==="suspended")attendanceAudioContext.resume();
+  }catch(error){
+    console.warn("출퇴근 알림음 준비 실패:",error);
+  }
+}
+function playAttendanceDingDong(){
+  try{
+    prepareAttendanceAudio();
+    const ctx=attendanceAudioContext;
+    if(!ctx)return;
+    const now=ctx.currentTime;
+    const master=ctx.createGain();
+    master.gain.setValueAtTime(0.0001,now);
+    master.gain.exponentialRampToValueAtTime(0.85,now+0.02);
+    master.gain.exponentialRampToValueAtTime(0.0001,now+1.05);
+    master.connect(ctx.destination);
+
+    [[784,0,0.42],[988,0.33,0.68]].forEach(([frequency,delay,duration])=>{
+      const osc=ctx.createOscillator();
+      const gain=ctx.createGain();
+      osc.type="sine";
+      osc.frequency.setValueAtTime(frequency,now+delay);
+      gain.gain.setValueAtTime(0.0001,now+delay);
+      gain.gain.exponentialRampToValueAtTime(0.75,now+delay+0.025);
+      gain.gain.exponentialRampToValueAtTime(0.0001,now+delay+duration);
+      osc.connect(gain);
+      gain.connect(master);
+      osc.start(now+delay);
+      osc.stop(now+delay+duration+0.05);
+    });
+  }catch(error){
+    console.warn("출퇴근 알림음 재생 실패:",error);
+  }
+}
+function speakAttendanceMessage(message){
+  if(!("speechSynthesis" in window))return;
+  try{
+    window.speechSynthesis.cancel();
+    const utterance=new SpeechSynthesisUtterance(message);
+    utterance.lang="ko-KR";
+    utterance.rate=0.92;
+    utterance.pitch=1;
+    utterance.volume=1;
+    const voices=window.speechSynthesis.getVoices();
+    const koreanVoice=voices.find(v=>String(v.lang||"").toLowerCase().startsWith("ko"));
+    if(koreanVoice)utterance.voice=koreanVoice;
+    window.speechSynthesis.speak(utterance);
+  }catch(error){
+    console.warn("출퇴근 음성 안내 실패:",error);
+  }
+}
+function playAttendanceSuccess(type){
+  playAttendanceDingDong();
+  const message=type==="in"?"정상 출근 되었습니다.":"정상 퇴근 되었습니다. 수고하셨습니다.";
+  setTimeout(()=>speakAttendanceMessage(message),720);
+}
+
 async function clockInNow(){
   if(!isAttendance())return;
+  prepareAttendanceAudio();
   const employeeId=document.getElementById("attendanceEmployeeSelect")?.value||"";
   if(!employeeId){alert("직원을 선택해주세요.");return;}
   const employee=workEmployees.find(e=>e.id===employeeId);
@@ -2931,8 +2996,8 @@ async function clockInNow(){
     const now=Date.now();
     await ref.set({employeeName:employee?.name||"",clockInAt:now,createdBy:currentAuthUser.uid});
     await db.ref(attendanceHistoryPath(todayLocalISO(),employeeId)).push().set({type:"in",timestamp:now});
-    alert(`${employee?.name||"직원"}님 출근 처리되었습니다.`);
     resetAttendanceSelection();
+    playAttendanceSuccess("in");
   }catch(error){
     console.error("출근 처리 실패:",error);
     alert("출근 처리에 실패했습니다. Firebase 데이터베이스 규칙을 확인해주세요.");
@@ -2945,6 +3010,7 @@ function roundedPaidMinutes(clockInAt,clockOutAt){
 }
 async function clockOutNow(){
   if(!isAttendance())return;
+  prepareAttendanceAudio();
   const employeeId=document.getElementById("attendanceEmployeeSelect")?.value||"";
   if(!employeeId){alert("직원을 선택해주세요.");return;}
 
@@ -2987,8 +3053,8 @@ async function clockOutNow(){
     });
 
     await ref.remove();
-    alert(`${open.employeeName||"직원"}님 퇴근 처리되었습니다.\n이번 근무 인정시간: ${formatMinutes(minutes)}\n직원 근무시간 기록에 자동 반영되었습니다.`);
     resetAttendanceSelection();
+    playAttendanceSuccess("out");
   }catch(error){
     console.error("퇴근 처리 실패:",error);
     alert("퇴근 처리 또는 근무시간 기록 반영에 실패했습니다. 잠시 후 다시 시도해주세요.");
