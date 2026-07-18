@@ -2824,12 +2824,23 @@ function renderAttendanceEmployeeSelect(){
   const select=document.getElementById("attendanceEmployeeSelect");
   if(!select)return;
   const previous=select.value;
+
   if(!workEmployees.length){
     select.innerHTML='<option value="">등록된 직원이 없습니다</option>';
+    select.value="";
   }else{
-    select.innerHTML='<option value="">직원을 선택하세요</option>'+workEmployees.map(e=>`<option value="${e.id}">${escapeHtml(e.name)}</option>`).join("");
-    if(workEmployees.some(e=>e.id===previous))select.value=previous;
+    select.innerHTML=workEmployees.map(e=>`<option value="${e.id}">${escapeHtml(e.name)}</option>`).join("");
+
+    // 기존 선택 직원이 있으면 유지하고, 없으면 첫 번째 직원을 자동 선택합니다.
+    if(workEmployees.some(e=>e.id===previous)){
+      select.value=previous;
+    }else{
+      select.value=workEmployees[0].id;
+    }
   }
+
+  // Firebase에서 직원 목록을 다시 불러온 뒤 버튼 상태도 즉시 갱신합니다.
+  if(isAttendance())watchAttendanceStatus();
 }
 function initializeAttendanceOnly(){
   renderAttendanceEmployeeSelect();
@@ -2860,6 +2871,13 @@ function watchAttendanceStatus(){
     return;
   }
   attendanceStatusRef=db.ref(attendanceOpenPath(employeeId));
+  if(status){
+    status.textContent="출퇴근 상태를 확인하고 있습니다.";
+    status.className="attendance-status off";
+  }
+  if(inBtn)inBtn.disabled=true;
+  if(outBtn)outBtn.disabled=true;
+
   attendanceStatusRef.on("value",snap=>{
     const value=snap.val();
     const working=!!(value&&value.clockInAt);
@@ -2869,6 +2887,14 @@ function watchAttendanceStatus(){
     }
     if(inBtn)inBtn.disabled=working;
     if(outBtn)outBtn.disabled=!working;
+  },error=>{
+    console.error("출퇴근 상태 확인 실패:",error);
+    if(status){
+      status.textContent="출퇴근 데이터 접근 권한을 확인해주세요.";
+      status.className="attendance-status off";
+    }
+    if(inBtn)inBtn.disabled=true;
+    if(outBtn)outBtn.disabled=true;
   });
 }
 function formatAttendanceTime(timestamp){
