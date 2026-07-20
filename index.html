@@ -2325,6 +2325,40 @@ button{-webkit-tap-highlight-color:transparent;}
 }
 </style>
 
+
+<style id="dongnaeok-hotfix-notification-schedule">
+/* 스케줄 상태 색상 복구: 기업형 공통 input 스타일보다 우선 적용 */
+#scheduleScreen .shift-input.shift-off,
+#scheduleScreen input.shift-input.shift-off{
+  background:#fde8e8!important;color:#b42323!important;border-color:#efb6b6!important;
+}
+#scheduleScreen .shift-input.shift-morning,
+#scheduleScreen input.shift-input.shift-morning{
+  background:#ffe3bd!important;color:#ad5b00!important;border-color:#f0b96d!important;
+}
+#scheduleScreen .shift-input.shift-afternoon,
+#scheduleScreen input.shift-input.shift-afternoon{
+  background:#fff3a8!important;color:#7d6500!important;border-color:#dec85b!important;
+}
+#scheduleScreen .shift-input.shift-work,
+#scheduleScreen input.shift-input.shift-work{
+  background:#e7f0ff!important;color:#1859a8!important;border-color:#aac7ee!important;
+}
+#scheduleScreen .shift-input:focus{
+  outline:none!important;box-shadow:0 0 0 3px rgba(45,105,180,.16)!important;
+}
+/* 홈 메뉴 알림 점 강제 표시 */
+#homeScreen .menu-card{position:relative!important;overflow:visible!important;}
+#homeScreen .menu-notification-dot{
+  display:none!important;position:absolute!important;top:9px!important;right:9px!important;
+  width:14px!important;height:14px!important;min-width:14px!important;min-height:14px!important;
+  padding:0!important;margin:0!important;border-radius:50%!important;background:#ff3b30!important;
+  border:2px solid #fff!important;box-shadow:0 2px 8px rgba(255,59,48,.45)!important;
+  z-index:999!important;pointer-events:none!important;
+}
+#homeScreen .menu-notification-dot.show{display:block!important;}
+</style>
+
 </head>
 
 <body>
@@ -4511,5 +4545,112 @@ function applyLanguage(){
 })();
 
 </script>
+
+<script id="dongnaeok-hotfix-notification-sync">
+(function(){
+  let orderFirstSnapshots={};
+  let reservationFirstSnapshot=true;
+
+  const oldAttachOrderSync=attachOrderSync;
+  attachOrderSync=function(){
+    detachOrderSync();
+    if(!firebaseReady || !currentAuthUser) return;
+    orderFirstSnapshots={};
+    const allowedPages=isOwner()?["kitchen","hall","vegetable"]:["vegetable"];
+    allowedPages.forEach(pageKey=>{
+      const ref=db.ref(orderPath(pageKey));
+      orderListenerRefs[pageKey]=ref;
+      ref.on("value",snap=>{
+        const value=snap.val()||{};
+        const remoteTime=Number(value.updatedAt||0);
+        const remoteDevice=String(value.updatedByDevice||"");
+        const first=!orderFirstSnapshots[pageKey];
+        orderFirstSnapshots[pageKey]=true;
+
+        if(!first && remoteTime>0 && remoteDevice && remoteDevice!==dongraeDeviceId){
+          latestOrderActivityAt=Math.max(latestOrderActivityAt,remoteTime);
+          updateActivityDots();
+        }
+
+        orderRemoteApplying=true;
+        quantities[pageKey]=(value.quantities&&typeof value.quantities==="object")?value.quantities:{};
+        localStorage.setItem("dongrae_order_"+pageKey,JSON.stringify(quantities[pageKey]));
+        if(currentPage===pageKey) renderPage();
+        setTimeout(()=>{orderRemoteApplying=false;},150);
+      },error=>console.error(pageKey+" 발주 동기화 실패:",error));
+    });
+  };
+
+  const oldAttachReservationSync=attachReservationSync;
+  attachReservationSync=function(){
+    if(!firebaseReady||!currentAuthUser)return;
+    if(reservationRef)reservationRef.off();
+    reservationFirstSnapshot=true;
+    reservationRef=db.ref("dongrae/reservations");
+    reservationRef.on("value",snap=>{
+      const value=snap.val()||{};
+      const nextReservations=Object.keys(value).map(id=>({id,...value[id]}));
+      let newestRemote=0;
+      nextReservations.forEach(r=>{
+        if(String(r.updatedByDevice||"")!==dongraeDeviceId){
+          newestRemote=Math.max(newestRemote,Number(r.updatedAt||r.createdAt||r.completedAt||0));
+        }
+      });
+      if(!reservationFirstSnapshot && newestRemote>0){
+        latestReservationActivityAt=Math.max(latestReservationActivityAt,newestRemote);
+        updateActivityDots();
+      }
+      reservationFirstSnapshot=false;
+      reservations=nextReservations;
+      latestReservationCreatedAt=reservations.reduce((m,r)=>Math.max(m,Number(r.createdAt||0)),0);
+      updateReservationBadge();
+      renderReservations();
+    },error=>console.error("예약 동기화 실패:",error));
+  };
+
+  const oldSaveReservation=saveReservation;
+  saveReservation=async function(){
+    if(!currentAuthUser||!firebaseReady)return;
+    const name=document.getElementById("reservationName").value.trim();
+    const phone=document.getElementById("reservationPhone").value.trim();
+    const people=Number(document.getElementById("reservationPeople").value);
+    const date=document.getElementById("reservationDate").value;
+    const time=document.getElementById("reservationTime").value;
+    const memo=document.getElementById("reservationMemo").value.trim();
+    if(!date||!time||!people||people<1||!name){alert(t("fillReservation"));return;}
+    if(cleanPhone(phone).length<9){alert(t("phoneRequired"));return;}
+    const payload={date,time,people,name,phone,memo,updatedAt:firebase.database.ServerValue.TIMESTAMP,updatedByDevice:dongraeDeviceId};
+    const wasEditing=!!editingReservationId;
+    if(editingReservationId){
+      await db.ref("dongrae/reservations/"+editingReservationId).update(payload);
+    }else{
+      const ref=db.ref("dongrae/reservations").push();
+      await ref.set({...payload,completed:false,createdAt:firebase.database.ServerValue.TIMESTAMP,createdBy:currentAuthUser.uid});
+    }
+    await publishActivity("reservation",{action:wasEditing?"edit":"add"});
+    clearReservationForm();
+  };
+
+  const oldToggleReservationComplete=toggleReservationComplete;
+  toggleReservationComplete=async function(id,current){
+    await db.ref("dongrae/reservations/"+id).update({
+      completed:!current,
+      completedAt:!current?firebase.database.ServerValue.TIMESTAMP:null,
+      completedBy:!current&&currentAuthUser?currentAuthUser.uid:null,
+      updatedAt:firebase.database.ServerValue.TIMESTAMP,
+      updatedByDevice:dongraeDeviceId
+    });
+    await publishActivity("reservation",{action:"complete"});
+  };
+
+  // 기존 데이터베이스 활동 경로와 실제 데이터 변경 감지를 함께 사용
+  const oldAttachActivitySync=attachActivitySync;
+  attachActivitySync=function(){
+    oldAttachActivitySync();
+    updateActivityDots();
+  };
+})();
+</script>
+
 </body>
 </html>
