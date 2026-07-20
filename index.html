@@ -122,6 +122,8 @@ async function logoutDongrae(){
   try{
     detachScheduleListener();
     detachOrderSync();
+    detachActivitySync();
+    clearTimeout(dailyResetTimer);
     await auth.signOut();
   }catch(error){
     console.error("로그아웃 실패:",error);
@@ -181,6 +183,7 @@ function showOrder(){
   if(isAttendance()){ denyAccess(t("accessDenied")); return; }
 
   currentPage="kitchen";
+  markOrderActivitySeen();
   renderPage();
   setActiveScreen("orderScreen");
 }
@@ -1228,7 +1231,16 @@ button,
 
 
 
-.reservation-badge{display:none;margin-top:8px;padding:7px 10px;border-radius:10px;background:#fff0f0;color:#b42323;font-size:13px;font-weight:900}
+
+.menu-card{position:relative}
+.menu-notification-dot{
+  display:none;position:absolute;top:12px;right:12px;width:12px;height:12px;
+  border-radius:999px;background:#f04444;border:2px solid #fff;
+  box-shadow:0 2px 7px rgba(240,68,68,.42);z-index:5;
+}
+.menu-notification-dot.show{display:block}
+
+.reservation-badge{display:none!important;margin-top:8px;padding:7px 10px;border-radius:10px;background:#fff0f0;color:#b42323;font-size:13px;font-weight:900}
 .reservation-badge.show{display:block}
 .reservation-card{max-width:980px;margin:auto;background:#fff;border-radius:18px;padding:18px;box-shadow:0 8px 24px rgba(0,0,0,.08)}
 .reservation-title{text-align:center;font-size:24px;font-weight:900;margin:16px 0}
@@ -2360,6 +2372,7 @@ button{-webkit-tap-highlight-color:transparent;}
       <p class="home-subtitle" data-i18n="chooseMenu">원하는 메뉴를 선택하세요.</p>
       <div class="menu-grid">
         <button id="orderMenuButton" class="menu-card" type="button" onclick="showOrder()">
+          <span id="orderNotificationDot" class="menu-notification-dot" aria-label="새 발주 변경 알림"></span>
           <div class="menu-icon">📦</div>
           <div class="menu-name" data-i18n="order">발주</div>
           <div class="menu-desc" data-i18n="orderDesc">주방·홀·야채 품목을 선택하고 발주서 이미지를 생성합니다.</div>
@@ -2377,6 +2390,7 @@ button{-webkit-tap-highlight-color:transparent;}
         </div>
       </button>
       <button id="reservationMenuButton" class="menu-card" type="button" onclick="showReservations()">
+        <span id="reservationNotificationDot" class="menu-notification-dot" aria-label="새 예약 변경 알림"></span>
         <div class="menu-icon">📞</div>
         <div class="menu-text">
           <div class="menu-name" data-i18n="reservation">예약</div>
@@ -2457,7 +2471,7 @@ const pages = {
         color: "group-gold",
         rowColor: "group-gold-row",
         items: [
-          ["다대기","박스"],["사골육수","박스"],["낚지볶음","박스"],
+          ["다대기","박스"],["사골육수","박스"],["낚지볶음","박스"],["갈비탕","박스"],
           ["편육","박스"],["돈가스","박스"],["순살족발","박스"]
         ]
       },
@@ -2574,6 +2588,111 @@ const pages = {
   }
 };
 
+
+const DONGRAE_DEVICE_ID_KEY="dongrae_device_id";
+const dongraeDeviceId=(()=>{
+  let id=localStorage.getItem(DONGRAE_DEVICE_ID_KEY);
+  if(!id){
+    id="device_"+Date.now().toString(36)+"_"+Math.random().toString(36).slice(2,10);
+    localStorage.setItem(DONGRAE_DEVICE_ID_KEY,id);
+  }
+  return id;
+})();
+let orderActivityRef=null;
+let reservationActivityRef=null;
+let latestOrderActivityAt=0;
+let latestReservationActivityAt=0;
+let dailyResetTimer=null;
+
+function todayKoreaISO(){
+  const parts=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Seoul",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date());
+  const get=type=>parts.find(p=>p.type===type)?.value||"";
+  return `${get("year")}-${get("month")}-${get("day")}`;
+}
+function activitySeenKey(type){return `dongrae_${type}_activity_seen_at`;}
+function getActivitySeenAt(type){return Number(localStorage.getItem(activitySeenKey(type))||0);}
+function updateActivityDots(){
+  const orderDot=document.getElementById("orderNotificationDot");
+  const reservationDot=document.getElementById("reservationNotificationDot");
+  if(orderDot)orderDot.classList.toggle("show",latestOrderActivityAt>getActivitySeenAt("order"));
+  if(reservationDot)reservationDot.classList.toggle("show",latestReservationActivityAt>getActivitySeenAt("reservation"));
+}
+function markOrderActivitySeen(){
+  if(latestOrderActivityAt>0)localStorage.setItem(activitySeenKey("order"),String(latestOrderActivityAt));
+  updateActivityDots();
+}
+function markReservationActivitySeen(){
+  if(latestReservationActivityAt>0)localStorage.setItem(activitySeenKey("reservation"),String(latestReservationActivityAt));
+  updateActivityDots();
+}
+async function publishActivity(type,detail={}){
+  if(!firebaseReady||!currentAuthUser)return;
+  try{
+    await db.ref(`dongrae/activity/${type}`).set({
+      ...detail,
+      updatedAt:firebase.database.ServerValue.TIMESTAMP,
+      updatedByDevice:dongraeDeviceId,
+      updatedByUser:currentAuthUser.uid
+    });
+  }catch(error){console.warn(type+" 알림 기록 실패:",error);}
+}
+function attachActivitySync(){
+  detachActivitySync();
+  if(!firebaseReady||!currentAuthUser)return;
+  orderActivityRef=db.ref("dongrae/activity/order");
+  reservationActivityRef=db.ref("dongrae/activity/reservation");
+  orderActivityRef.on("value",snap=>{
+    const v=snap.val()||{};
+    if(v.updatedByDevice!==dongraeDeviceId)latestOrderActivityAt=Number(v.updatedAt||0);
+    updateActivityDots();
+  });
+  reservationActivityRef.on("value",snap=>{
+    const v=snap.val()||{};
+    if(v.updatedByDevice!==dongraeDeviceId)latestReservationActivityAt=Number(v.updatedAt||0);
+    updateActivityDots();
+  });
+}
+function detachActivitySync(){
+  if(orderActivityRef)orderActivityRef.off();
+  if(reservationActivityRef)reservationActivityRef.off();
+  orderActivityRef=null;reservationActivityRef=null;
+  latestOrderActivityAt=0;latestReservationActivityAt=0;
+  updateActivityDots();
+}
+async function ensureDailyOrderReset(){
+  if(!firebaseReady||!currentAuthUser)return;
+  const today=todayKoreaISO();
+  const metaRef=db.ref("dongrae/orderMeta/lastResetDate");
+  let shouldReset=false;
+  try{
+    await metaRef.transaction(current=>{
+      if(!current)return today;
+      if(current!==today){shouldReset=true;return today;}
+      return;
+    });
+    if(shouldReset){
+      const updates={};
+      ["kitchen","hall","vegetable"].forEach(pageKey=>{
+        updates[`dongrae/orders/${pageKey}/quantities`]=null;
+        updates[`dongrae/orders/${pageKey}/reset`]=true;
+        updates[`dongrae/orders/${pageKey}/updatedAt`]=firebase.database.ServerValue.TIMESTAMP;
+        quantities[pageKey]={};
+        localStorage.setItem("dongrae_order_"+pageKey,JSON.stringify({}));
+      });
+      await db.ref().update(updates);
+      if(document.getElementById("orderScreen")?.classList.contains("active"))renderPage();
+    }
+  }catch(error){console.error("자정 발주 초기화 실패:",error);}
+  scheduleNextMidnightReset();
+}
+function scheduleNextMidnightReset(){
+  clearTimeout(dailyResetTimer);
+  const now=new Date();
+  const next=new Date(now);
+  next.setHours(24,0,2,0);
+  dailyResetTimer=setTimeout(()=>ensureDailyOrderReset(),Math.max(1000,next-now));
+}
+
 let currentPage = "kitchen";
 const quantities = { kitchen:{}, hall:{}, vegetable:{} };
 let orderRemoteApplying=false;
@@ -2642,8 +2761,10 @@ function queueOrderSave(pageKey){
         await db.ref(orderPath(pageKey)).set({
           quantities:quantities[pageKey],
           reset:false,
-          updatedAt:firebase.database.ServerValue.TIMESTAMP
+          updatedAt:firebase.database.ServerValue.TIMESTAMP,
+          updatedByDevice:dongraeDeviceId
         });
+        await publishActivity("order",{page:pageKey,action:"quantity"});
       }
     }catch(error){
       console.error(pageKey+" 발주 저장 실패:",error);
@@ -3654,6 +3775,7 @@ function updateReservationBadge(){
 }
 function markReservationsSeen(){
   if(latestReservationCreatedAt>0)localStorage.setItem(reservationSeenKey(),String(latestReservationCreatedAt));
+  markReservationActivitySeen();
   updateReservationBadge();
 }
 function attachReservationSync(){
@@ -3710,6 +3832,7 @@ async function saveReservation(){
     const ref=db.ref("dongrae/reservations").push();
     await ref.set({...payload,completed:false,createdAt:firebase.database.ServerValue.TIMESTAMP,createdBy:currentAuthUser.uid});
   }
+  await publishActivity("reservation",{action:editingReservationId?"edit":"add"});
   clearReservationForm();
 }
 function editReservation(id){
@@ -3731,11 +3854,13 @@ async function toggleReservationComplete(id,current){
     completedAt:!current?firebase.database.ServerValue.TIMESTAMP:null,
     completedBy:!current&&currentAuthUser?currentAuthUser.uid:null
   });
+  await publishActivity("reservation",{action:"complete"});
 }
 async function deleteReservation(id){
   if(!isOwner()){alert(t("deleteOwnerOnly"));return;}
   if(!confirm(t("deleteReservation")))return;
   await db.ref("dongrae/reservations/"+id).remove();
+  await publishActivity("reservation",{action:"delete"});
 }
 function formatReservationDate(date){
   if(!date)return "";
@@ -3882,6 +4007,8 @@ document.addEventListener("DOMContentLoaded",()=>{
 
       attachOrderSync();
       attachReservationSync();
+      attachActivitySync();
+      ensureDailyOrderReset();
       attachWorkEmployeeSync();
       if(isAttendance()){
         setActiveScreen("workTimeScreen");
@@ -3896,6 +4023,8 @@ document.addEventListener("DOMContentLoaded",()=>{
       detachOrderSync();
       detachScheduleListener();
       detachReservationSync();
+      detachActivitySync();
+      clearTimeout(dailyResetTimer);
       detachWorkSync();
       setActiveScreen("loginScreen");
 
@@ -4014,6 +4143,7 @@ const ITEM_VI = {
   "다대기":"Sốt gia vị cay",
   "사골육수":"Nước hầm xương bò",
   "낚지볶음":"Bạch tuộc xào",
+  "갈비탕":"Canh sườn bò",
   "편육":"Thịt ép lát",
   "돈가스":"Thịt heo chiên xù",
   "순살족발":"Chân giò rút xương",
