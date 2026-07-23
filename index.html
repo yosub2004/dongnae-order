@@ -300,16 +300,31 @@ function attachScheduleListener(){
 
     const value=snap.val();
 
-    if(value && value.employees){
-      scheduleEmployees=Array.isArray(value.employees)
-        ? value.employees
-        : Object.keys(value.employees)
-            .sort((a,b)=>Number(a)-Number(b))
-            .map(key=>value.employees[key]);
+    if(value && (value.employees || value.dispatchEmployees)){
+      if(value.employees){
+        scheduleEmployees=Array.isArray(value.employees)
+          ? value.employees
+          : Object.keys(value.employees)
+              .sort((a,b)=>Number(a)-Number(b))
+              .map(key=>value.employees[key]);
+      }else{
+        scheduleEmployees=defaultEmployees();
+      }
+
+      if(value.dispatchEmployees){
+        dispatchEmployees=Array.isArray(value.dispatchEmployees)
+          ? value.dispatchEmployees
+          : Object.keys(value.dispatchEmployees)
+              .sort((a,b)=>Number(a)-Number(b))
+              .map(key=>value.dispatchEmployees[key]);
+      }else{
+        dispatchEmployees=defaultDispatchEmployees();
+      }
 
       normalizeEmployees();
+      normalizeDispatchEmployees();
       localStorage.setItem(weekKey(),JSON.stringify(scheduleEmployees));
-    localStorage.setItem(weekKey()+"_dispatch",JSON.stringify(dispatchEmployees));
+      localStorage.setItem(weekKey()+"_dispatch",JSON.stringify(dispatchEmployees));
       renderScheduleWithoutReload();
       return;
     }
